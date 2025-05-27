@@ -1,0 +1,350 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Telegram User Profile</title>
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+            color: #333;
+        }
+
+        .container {
+            max-width: 600px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+            padding: 30px;
+            text-align: center;
+            color: white;
+        }
+
+        .header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+            font-weight: 300;
+        }
+
+        .header p {
+            opacity: 0.9;
+            font-size: 1.1em;
+        }
+
+        .content {
+            padding: 40px;
+        }
+
+        .user-card {
+            background: #f8f9fa;
+            border-radius: 15px;
+            padding: 30px;
+            margin-bottom: 30px;
+            border-left: 5px solid #4facfe;
+        }
+
+        .user-info {
+            display: none;
+        }
+
+        .user-info.show {
+            display: block;
+            animation: fadeIn 0.5s ease-in;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .info-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 15px 0;
+            border-bottom: 1px solid #e9ecef;
+        }
+
+        .info-row:last-child {
+            border-bottom: none;
+        }
+
+        .info-label {
+            font-weight: 600;
+            color: #495057;
+            font-size: 1.1em;
+        }
+
+        .info-value {
+            color: #6c757d;
+            font-size: 1.1em;
+            text-align: right;
+            max-width: 60%;
+            word-wrap: break-word;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 40px;
+        }
+
+        .spinner {
+            width: 50px;
+            height: 50px;
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #4facfe;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 20px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .error {
+            background: #f8d7da;
+            color: #721c24;
+            padding: 20px;
+            border-radius: 10px;
+            border-left: 5px solid #dc3545;
+            margin-bottom: 20px;
+        }
+
+        .button {
+            background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+            border: none;
+            padding: 15px 30px;
+            border-radius: 25px;
+            color: white;
+            font-size: 1.1em;
+            cursor: pointer;
+            transition: transform 0.2s;
+            display: block;
+            margin: 0 auto;
+        }
+
+        .button:hover {
+            transform: translateY(-2px);
+        }
+
+        .avatar {
+            width: 80px;
+            height: 80px;
+            border-radius: 50%;
+            margin: 0 auto 20px;
+            display: block;
+            border: 4px solid #4facfe;
+        }
+
+        @media (max-width: 768px) {
+            .info-row {
+                flex-direction: column;
+                align-items: flex-start;
+            }
+            
+            .info-value {
+                text-align: left;
+                max-width: 100%;
+                margin-top: 5px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🚀 Telegram Profile</h1>
+            <p>Your details from Telegram</p>
+        </div>
+        
+        <div class="content">
+            <div id="loading" class="loading">
+                <div class="spinner"></div>
+                <p>Loading your profile...</p>
+            </div>
+
+            <div id="error" class="error" style="display: none;">
+                <strong>Error:</strong> Unable to load Telegram user data. This page should be opened through a Telegram bot.
+            </div>
+
+            <div id="userInfo" class="user-info">
+                <div class="user-card">
+                    <img id="userPhoto" class="avatar" style="display: none;" alt="User Avatar">
+                    <div id="userDetails"></div>
+                </div>
+                
+                <button class="button" onclick="refreshData()">
+                    🔄 Refresh Data
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Store user data in memory
+        let userData = null;
+
+        // Initialize when page loads
+        window.addEventListener('load', function() {
+            initializeTelegramWebApp();
+        });
+
+        function initializeTelegramWebApp() {
+            try {
+                // Check if Telegram WebApp is available
+                if (window.Telegram && window.Telegram.WebApp) {
+                    const tg = window.Telegram.WebApp;
+                    
+                    // Expand the web app to full height
+                    tg.expand();
+                    
+                    // Get user data
+                    if (tg.initDataUnsafe && tg.initDataUnsafe.user) {
+                        userData = tg.initDataUnsafe.user;
+                        displayUserData(userData);
+                    } else {
+                        // Fallback: create mock data for testing
+                        setTimeout(() => {
+                            showError("No user data available. Using demo data for testing.");
+                            userData = {
+                                id: 123456789,
+                                first_name: "Demo",
+                                last_name: "User",
+                                username: "demo_user",
+                                language_code: "en",
+                                is_bot: false,
+                                is_premium: false
+                            };
+                            displayUserData(userData);
+                        }, 1500);
+                    }
+                } else {
+                    // Fallback for testing outside Telegram
+                    setTimeout(() => {
+                        showError("Telegram WebApp not detected. Using demo data for testing.");
+                        userData = {
+                            id: 987654321,
+                            first_name: "Test",
+                            last_name: "User",
+                            username: "test_user",
+                            language_code: "en",
+                            is_bot: false,
+                            is_premium: true
+                        };
+                        displayUserData(userData);
+                    }, 1500);
+                }
+            } catch (error) {
+                console.error('Error initializing Telegram WebApp:', error);
+                showError("Failed to initialize. Error: " + error.message);
+            }
+        }
+
+        function displayUserData(user) {
+            const loading = document.getElementById('loading');
+            const userInfo = document.getElementById('userInfo');
+            const userDetails = document.getElementById('userDetails');
+            
+            // Hide loading
+            loading.style.display = 'none';
+            
+            // Create user details HTML
+            let detailsHTML = '';
+            
+            // Add each available field
+            const fields = [
+                { key: 'id', label: '🆔 User ID', value: user.id },
+                { key: 'first_name', label: '👤 First Name', value: user.first_name },
+                { key: 'last_name', label: '👤 Last Name', value: user.last_name },
+                { key: 'username', label: '📱 Username', value: user.username ? '@' + user.username : 'Not set' },
+                { key: 'language_code', label: '🌐 Language', value: user.language_code || 'Not specified' },
+                { key: 'is_bot', label: '🤖 Is Bot', value: user.is_bot ? 'Yes' : 'No' },
+                { key: 'is_premium', label: '⭐ Premium User', value: user.is_premium ? 'Yes' : 'No' }
+            ];
+            
+            fields.forEach(field => {
+                if (field.value !== undefined && field.value !== null) {
+                    detailsHTML += `
+                        <div class="info-row">
+                            <span class="info-label">${field.label}</span>
+                            <span class="info-value">${field.value}</span>
+                        </div>
+                    `;
+                }
+            });
+            
+            userDetails.innerHTML = detailsHTML;
+            
+            // Show user info with animation
+            userInfo.classList.add('show');
+            
+            // Store the data timestamp
+            const timestamp = new Date().toLocaleString();
+            userDetails.innerHTML += `
+                <div class="info-row">
+                    <span class="info-label">🕒 Last Updated</span>
+                    <span class="info-value">${timestamp}</span>
+                </div>
+            `;
+        }
+
+        function showError(message) {
+            const loading = document.getElementById('loading');
+            const error = document.getElementById('error');
+            
+            loading.style.display = 'none';
+            error.style.display = 'block';
+            error.innerHTML = `<strong>Notice:</strong> ${message}`;
+        }
+
+        function refreshData() {
+            const userInfo = document.getElementById('userInfo');
+            const loading = document.getElementById('loading');
+            
+            // Hide current data and show loading
+            userInfo.classList.remove('show');
+            loading.style.display = 'block';
+            
+            // Re-initialize after a short delay
+            setTimeout(() => {
+                if (userData) {
+                    displayUserData(userData);
+                } else {
+                    initializeTelegramWebApp();
+                }
+            }, 1000);
+        }
+
+        // Handle Telegram WebApp events
+        if (window.Telegram && window.Telegram.WebApp) {
+            const tg = window.Telegram.WebApp;
+            
+            // Set up the back button
+            tg.BackButton.onClick(function() {
+                tg.close();
+            });
+            
+            // Show back button if needed
+            // tg.BackButton.show();
+        }
+    </script>
+</body>
+</html>
