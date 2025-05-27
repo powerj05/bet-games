@@ -1,5 +1,5 @@
 from typing import Final
-from telegram import Update
+from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, WebAppInfo
 from telegram.ext import Application, CommandHandler, MessageHandler, filters, ContextTypes
 
 TOKEN: Final = '7137871448:AAGF5aNYGX6ghxTSHEHDLruGKiEsKPDMMlw'
@@ -21,6 +21,7 @@ async def custom_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 def handle_response(text: str) -> str:
     return f'Thanks. We received "{text}"'
 
+
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     message_type: str = update.message.chat.type
     chat: str = update.message.chat
@@ -37,8 +38,15 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     else:
         response: str = handle_response(text)
     
+    # Generate keyboard markup for webapp
+
+    webapp = WebAppInfo(url = "https://powerj05.github.io/bet-games/")
+    keyboard = InlineKeyboardMarkup([[
+        InlineKeyboardButton("Check out my webapp!", web_app = webapp)]])
+
     print(f'Bot: "{response}"')
-    await update.message.reply_text(response)
+    await update.message.reply_text(response, 
+        reply_markup = keyboard)
 
 async def error(update: Update, context: ContextTypes.DEFAULT_TYPE):
     print(f'Update {update} caused error {context.error}')
